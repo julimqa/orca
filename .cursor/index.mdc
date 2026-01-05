@@ -1,0 +1,136 @@
+# ======================================================================
+# Cursor Global Rules — AI-First & Context-Optimized (EN)
+# ======================================================================
+
+## 0. Purpose
+
+You are an AI developer working on the TMS_v2 (Test Management System) project.
+These rules define how you read, modify, and generate code in this repository.
+
+Primary goals:
+- Keep changes small, focused, and reviewable.
+- Use context (tokens) efficiently.
+- Preserve and extend the existing architecture instead of reinventing it.
+
+Rule precedence:
+1. Explicit user instructions
+2. This rules file (.cursorrules / .cursor/index.mdc)
+3. Domain rules (frontend / backend / api-layer / testing / commit, including Playwright E2E rules)
+4. Existing code patterns & linters/formatters
+5. AI discretion for unspecified details
+
+---
+
+## 1. Scope & Context Usage
+
+- Only touch files that are directly related to the requested change.
+- Do not refactor unrelated code unless explicitly asked.
+- For large files, read only relevant sections or summarize first.
+- Prefer minimal, incremental changes over broad rewrites.
+
+---
+
+## 2. Output Format
+
+- Use unified **diff** format when modifying existing files.
+- Use “New File” blocks when adding files.
+- Ask for confirmation before deleting or renaming files.
+
+---
+
+## 3. Architecture Summary
+
+- Frontend: React + TS + Vite + Tailwind
+- Backend: Express + TS + Prisma(SQLite) + Zod
+- Testing: Playwright E2E
+- Runtime: Electron
+
+Respect and extend the existing patterns in each area.
+
+---
+
+## 4. Error Model (Shared Contract)
+
+Backend error responses MUST look like:
+
+```json
+{
+  "success": false,
+  "code": "ERROR_CODE",
+  "message": "Human readable message",
+  "details": {}
+}
+```
+
+Frontend must:
+- Wrap these into a typed error object (e.g. `ApiException`).
+- Use a shared error handler to map codes → user-facing messages.
+
+---
+
+## 5. Naming & Structure
+
+Use the following conventions unless the repo clearly uses another:
+
+- Files: kebab-case (`test-case-list.tsx`)
+- Components: PascalCase (`TestCaseList`)
+- Functions/vars: camelCase (`fetchTestCases`)
+- Constants: UPPER_SNAKE_CASE (`MAX_UPLOAD_SIZE`)
+- Prisma models: PascalCase (`TestCase`)
+- API routes: kebab-case (`/test-cases/:id`)
+
+---
+
+## 6. Domain Summaries
+
+### 6.1 Frontend
+
+- Use React function components + hooks.
+- Data fetching must go through `/frontend/src/api/**`.
+- Use React Query (or chosen library) for server state.
+- Keep components small; push logic into hooks/utilities.
+
+### 6.2 Backend
+
+- Enforce Controller → Service → Prisma layers.
+- Validate inputs at the controller boundary using Zod.
+- Throw a single unified error type for business errors.
+- Use transactions for multi-step DB operations.
+
+### 6.3 API Layer
+
+- Single configured axios/fetch client.
+- Inject auth token via interceptor.
+- Handle 401 (unauthorized) consistently (logout + redirect).
+
+### 6.4 Testing
+
+- Use Playwright for E2E.
+- Use POM and `data-testid` selectors.
+- Add/update tests when features are added or behavior changes.
+- Follow **Playwright E2E Testing Rules (EN)** for detailed behavior.
+
+---
+
+## 7. AI Behavior
+
+You MUST:
+
+- Ask clarifying questions when requirements are ambiguous.
+- Never silently change public API contracts.
+- Never introduce external paid services without consent.
+- Never log sensitive data.
+
+If uncertain:
+- State your uncertainty.
+- Propose 1–2 options with pros/cons.
+- Choose the safest, simplest option and mark it as an assumption.
+
+---
+
+## 8. Language
+
+- Code/comments: follow the language used in the file (usually English).
+- Explanations to the user: default to Korean unless requested otherwise.
+
+End of Global Rules (EN).

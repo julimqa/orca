@@ -1,0 +1,95 @@
+// Prisma Schema for TMS Backend
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Railway에 PostgreSQL을 추가하지 않은 경우 에러 방지
+  // 프로덕션 배포 전 반드시 Railway에서 PostgreSQL 서비스를 추가하세요
+}
+
+// User Model - 사용자 및 권한 관리
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String   // bcrypt 해시 저장
+  name      String
+  role      String   @default("USER")
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Folder Model - 계층형 폴더 구조
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?
+  order     Float    @default(0) // 같은 레벨 내 정렬 순서
+  parent    Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children  Folder[] @relation("FolderHierarchy")
+  testCases TestCase[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("folders")
+}
+
+// TestCase Model - 테스트케이스
+model TestCase {
+  id             String   @id @default(cuid())
+  caseNumber     Int?     @unique // OVDR 형식 ID용 번호 (애플리케이션에서 자동 생성)
+  title          String
+  description    String?
+  precondition   String?
+  steps          String?
+  expectedResult String?
+  priority       String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  automationType String   @default("MANUAL") // MANUAL, AUTOMATED
+  category       String?  // 사용자 정의 카테고리
+  sequence       Float    @default(0) // 정렬 순서
+  folderId       String?
+  folder         Folder?  @relation(fields: [folderId], references: [id])
+  planItems      PlanItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("testcases")
+}
+
+// Plan Model - 테스트 실행 계획
+model Plan {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  status      String     @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdBy   String     // 이메일 또는 이름
+  items       PlanItem[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("plans")
+}
+
+// PlanItem Model - 플랜 내 개별 테스트케이스 실행 정보
+model PlanItem {
+  id          String    @id @default(cuid())
+  planId      String
+  plan        Plan      @relation(fields: [planId], references: [id])
+  testCaseId  String
+  testCase    TestCase  @relation(fields: [testCaseId], references: [id])
+  assignee    String?   // 담당자
+  result      String    @default("NOT_RUN") // NOT_RUN, PASS, FAIL, BLOCK
+  comment     String?
+  order       Float     @default(0) // 플랜 내 정렬 순서
+  executedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("plan_items")
+}
+

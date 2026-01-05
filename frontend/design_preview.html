@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMS 2.0 Design Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5', // Main Brand Color
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar for elegant look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased h-screen flex overflow-hidden">
+
+    <!-- 1. LEFT SIDEBAR NAVIGATION -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-shrink-0 flex flex-col z-20">
+        <!-- Brand -->
+        <div class="h-16 flex items-center px-6 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
+                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                </div>
+                <span class="text-lg font-bold text-slate-800 tracking-tight">ORCA</span>
+            </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <div class="flex-1 overflow-y-auto py-6 px-3 space-y-6">
+            
+            <!-- Section: Main -->
+            <div>
+                <div class="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Project
+                </div>
+                <nav class="space-y-1">
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-md hover:bg-slate-50 hover:text-slate-900 group">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600"></i>
+                        Dashboard
+                    </a>
+                    <!-- Active State Example -->
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium bg-primary-50 text-primary-700 rounded-md group">
+                        <i data-lucide="file-text" class="w-5 h-5 mr-3 text-primary-600"></i>
+                        Test Cases
+                    </a>
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-md hover:bg-slate-50 hover:text-slate-900 group">
+                        <i data-lucide="play-circle" class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600"></i>
+                        Test Plans & Runs
+                    </a>
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-md hover:bg-slate-50 hover:text-slate-900 group">
+                        <i data-lucide="bar-chart-2" class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600"></i>
+                        Reports
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Section: System -->
+            <div>
+                <div class="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    System
+                </div>
+                <nav class="space-y-1">
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-md hover:bg-slate-50 hover:text-slate-900 group">
+                        <i data-lucide="users" class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600"></i>
+                        Users & Roles
+                    </a>
+                    <a href="#" class="flex items-center px-3 py-2 text-sm font-medium text-slate-600 rounded-md hover:bg-slate-50 hover:text-slate-900 group">
+                        <i data-lucide="settings" class="w-5 h-5 mr-3 text-slate-400 group-hover:text-slate-600"></i>
+                        Administration
+                    </a>
+                </nav>
+            </div>
+        </div>
+
+        <!-- User Profile -->
+        <div class="p-4 border-t border-slate-100">
+            <div class="flex items-center w-full p-2 rounded-md hover:bg-slate-50 transition-colors cursor-pointer">
+                <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs border border-slate-300">
+                    AD
+                </div>
+                <div class="ml-3 flex-1 overflow-hidden">
+                    <p class="text-sm font-medium text-slate-700 truncate">Admin User</p>
+                    <p class="text-xs text-slate-500 truncate">admin@company.com</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 2. MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        <!-- Top Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
+            <!-- Breadcrumbs / Context -->
+            <div class="flex items-center text-sm">
+                <span class="text-slate-500 hover:text-slate-700 cursor-pointer">Projects</span>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 mx-2"></i>
+                <span class="font-semibold text-slate-900">Alpha Release 2.0</span>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center space-x-4">
+                <!-- Search -->
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                    <input type="text" placeholder="Search..." class="pl-9 pr-4 py-1.5 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-64 transition-all">
+                </div>
+                
+                <div class="h-6 w-px bg-slate-200"></div>
+
+                <button class="p-2 text-slate-400 hover:text-slate-600 relative">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
+                <button class="p-2 text-slate-400 hover:text-slate-600">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Page Content Wrapper -->
+        <main class="flex-1 flex overflow-hidden">
+            
+            <!-- 2.1 FOLDER TREE SIDEBAR (Inner Sidebar) -->
+            <div class="w-72 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0">
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Folders</h3>
+                    <button class="text-primary-600 hover:text-primary-700 p-1 hover:bg-primary-50 rounded transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                    <!-- Tree Item: Root (Active) -->
+                    <div class="mb-1">
+                        <div class="flex items-center px-2 py-1.5 bg-white border border-primary-200 rounded-md shadow-sm text-primary-700 font-medium text-sm cursor-pointer">
+                            <i data-lucide="folder-open" class="w-4 h-4 mr-2 text-primary-500"></i>
+                            All Test Cases
+                            <span class="ml-auto text-xs bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full">34</span>
+                        </div>
+                    </div>
+
+                    <!-- Tree Item: Subfolders -->
+                    <div class="pl-4 space-y-1 mt-2">
+                        <div class="flex items-center px-2 py-1.5 text-slate-600 hover:bg-slate-100 rounded-md text-sm cursor-pointer group">
+                            <i data-lucide="folder" class="w-4 h-4 mr-2 text-slate-400 group-hover:text-slate-500"></i>
+                            Authentication
+                        </div>
+                        <div class="flex items-center px-2 py-1.5 text-slate-600 hover:bg-slate-100 rounded-md text-sm cursor-pointer group">
+                            <i data-lucide="folder" class="w-4 h-4 mr-2 text-slate-400 group-hover:text-slate-500"></i>
+                            Payments & Checkout
+                        </div>
+                        <div class="flex items-center px-2 py-1.5 text-slate-600 hover:bg-slate-100 rounded-md text-sm cursor-pointer group">
+                            <i data-lucide="folder" class="w-4 h-4 mr-2 text-slate-400 group-hover:text-slate-500"></i>
+                            User Settings
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.2 MAIN DATA TABLE AREA -->
+            <div class="flex-1 flex flex-col bg-white overflow-hidden">
+                <!-- Toolbar -->
+                <div class="px-8 py-5 border-b border-slate-200 flex justify-between items-end bg-white">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900">All Test Cases</h1>
+                        <p class="text-sm text-slate-500 mt-1">Manage scenarios for the entire project.</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button class="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i data-lucide="upload" class="w-4 h-4 mr-2 text-slate-500"></i>
+                            Import
+                        </button>
+                        <button class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            Add Case
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="px-8 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <select class="block w-full pl-3 pr-10 py-1.5 text-sm border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md shadow-sm bg-white text-slate-700">
+                                <option>Priority: All</option>
+                                <option>High</option>
+                                <option>Medium</option>
+                                <option>Low</option>
+                            </select>
+                        </div>
+                        <div class="relative">
+                             <select class="block w-full pl-3 pr-10 py-1.5 text-sm border-slate-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md shadow-sm bg-white text-slate-700">
+                                <option>Type: All</option>
+                                <option>Functional</option>
+                                <option>Performance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <span class="text-xs text-slate-500 font-medium uppercase tracking-wide">
+                        Showing 34 cases
+                    </span>
+                </div>
+
+                <!-- Table -->
+                <div class="flex-1 overflow-auto p-8 bg-slate-50/50">
+                    <div class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">
+                                        ID
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        Title
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">
+                                        Section
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">
+                                        Priority
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider w-20">
+                                        
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-slate-200">
+                                <!-- Row 1 -->
+                                <tr class="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+                                        C102
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-slate-900 group-hover:text-primary-600">
+                                            Verify user can login with valid credentials
+                                        </div>
+                                        <div class="text-xs text-slate-500 mt-0.5">Updated by Admin 2h ago</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        Authentication
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200">
+                                            High
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <i data-lucide="more-horizontal" class="w-4 h-4 text-slate-400 hover:text-slate-600 cursor-pointer"></i>
+                                    </td>
+                                </tr>
+
+                                <!-- Row 2 -->
+                                <tr class="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+                                        C103
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-slate-900 group-hover:text-primary-600">
+                                            Verify password reset email delivery
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        Authentication
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                                            Medium
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <i data-lucide="more-horizontal" class="w-4 h-4 text-slate-400 hover:text-slate-600 cursor-pointer"></i>
+                                    </td>
+                                </div>
+
+                                <!-- Row 3 -->
+                                <tr class="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+                                        C104
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-slate-900 group-hover:text-primary-600">
+                                            Guest user checkout flow
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        Payments
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 border border-rose-200">
+                                            High
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <i data-lucide="more-horizontal" class="w-4 h-4 text-slate-400 hover:text-slate-600 cursor-pointer"></i>
+                                    </td>
+                                </tr>
+
+                                <!-- Row 4 -->
+                                <tr class="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-500">
+                                        C105
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-slate-900 group-hover:text-primary-600">
+                                            Update user profile settings
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        Settings
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                            Low
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <i data-lucide="more-horizontal" class="w-4 h-4 text-slate-400 hover:text-slate-600 cursor-pointer"></i>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
+
+

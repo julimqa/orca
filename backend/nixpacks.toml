@@ -1,0 +1,14 @@
+# Nixpacks 설정 파일 (Railway 빌드 커스터마이징)
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm start"
+
