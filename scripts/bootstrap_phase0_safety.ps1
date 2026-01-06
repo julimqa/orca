@@ -1,4 +1,4 @@
-<# 
+﻿<# 
   Phase0 Safety 브랜치 개발환경 부트스트랩 스크립트 (Windows PowerShell)
 
   하는 일:

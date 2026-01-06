@@ -59,6 +59,21 @@ cd ORCA
 
 ### 3. 개발 서버 실행(터미널 2개)
 
+#### 옵션 A) 루트에서 한 번에 실행 (권장)
+
+루트에서:
+```powershell
+npm run dev
+```
+
+개별 실행이 필요하면:
+```powershell
+npm run dev:backend
+npm run dev:frontend
+```
+
+#### 옵션 B) 터미널 2개로 각각 실행
+
 백엔드:
 ```powershell
 cd backend

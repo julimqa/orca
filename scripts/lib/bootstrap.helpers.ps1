@@ -1,4 +1,4 @@
-<# 
+﻿<# 
   Shared helpers for DB bootstrap scripts (Docker/Podman + Compose).
   - Keep scripts non-interactive and Windows PowerShell friendly.
 #>

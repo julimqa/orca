@@ -1,8 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
 
 const prisma = new PrismaClient();
 const SALT_ROUNDS = 10;
+
+// Load environment variables from backend/.env when running via ts-node
+dotenv.config();
 
 async function main() {
   console.log('🌱 시드 데이터 생성을 시작합니다...');

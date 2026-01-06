@@ -1,4 +1,4 @@
-<#
+﻿<#
   Canonical bootstrap entrypoint for local dev DB (Docker/Podman).
 
   Goals:

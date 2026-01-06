@@ -1,16 +1,23 @@
-# SQLite에서 PostgreSQL로 마이그레이션 스크립트 (Windows PowerShell)
+﻿# SQLite에서 PostgreSQL로 마이그레이션 스크립트 (Windows PowerShell)
 # 사용법: .\scripts\migrate-to-postgresql.ps1
 
 $ErrorActionPreference = "Stop"
+
+
+\ = Split-Path -Parent \C:\Users\julim\AppData\Local\Temp
+\ = Split-Path -Parent \
+
+Push-Location \
+try {
 
 Write-Host "🚀 PostgreSQL 마이그레이션을 시작합니다..." -ForegroundColor Cyan
 Write-Host ""
 
 # 1. .env 파일 확인
 Write-Host "📝 1단계: 환경변수 확인" -ForegroundColor Yellow
-if (-not (Test-Path .env)) {
+if (-not (Test-Path -LiteralPath ".env")) {
     Write-Host "⚠️  .env 파일이 없습니다. env.example을 복사합니다..." -ForegroundColor Yellow
-    Copy-Item env.example .env
+    Copy-Item -LiteralPath "env.example" -Destination ".env"
     Write-Host "❗ .env 파일의 DATABASE_URL을 수정해주세요!" -ForegroundColor Red
     Write-Host "   현재: file:./dev.db"
     Write-Host "   변경: postgresql://postgres:postgres@localhost:5432/tms_dev"
@@ -34,11 +41,14 @@ try {
     Write-Host "Docker로 PostgreSQL을 시작하시겠습니까?"
     $dockerConfirm = Read-Host "(프로젝트 루트에 docker-compose.yml 필요) (y/N)"
     if ($dockerConfirm -eq "y") {
-        Set-Location ..
-        docker-compose up -d postgres
+        Push-Location $repoRoot
+        try {
+            docker-compose up -d postgres
+        } finally {
+            Pop-Location
+        }
         Write-Host "PostgreSQL이 시작될 때까지 대기 중..." -ForegroundColor Yellow
         Start-Sleep -Seconds 5
-        Set-Location backend
         Write-Host "✅ PostgreSQL 시작 완료" -ForegroundColor Green
     } else {
         Write-Host "❌ PostgreSQL이 필요합니다. 설치하거나 Docker를 사용하세요." -ForegroundColor Red
@@ -49,11 +59,11 @@ Write-Host ""
 
 # 3. 기존 SQLite 마이그레이션 백업
 Write-Host "💾 3단계: 기존 마이그레이션 백업" -ForegroundColor Yellow
-if (Test-Path "prisma\migrations") {
+if (Test-Path -LiteralPath "prisma\\migrations") {
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     New-Item -ItemType Directory -Path "prisma\migrations_backup" -Force | Out-Null
-    Copy-Item -Path "prisma\migrations" -Destination "prisma\migrations_backup\sqlite_$timestamp" -Recurse
-    Remove-Item -Path "prisma\migrations" -Recurse -Force
+    Copy-Item -LiteralPath "prisma\\migrations" -Destination ("prisma\\migrations_backup\\sqlite_{0}" -f $timestamp) -Recurse
+    Remove-Item -LiteralPath "prisma\\migrations" -Recurse -Force
     Write-Host "✅ 기존 마이그레이션 백업 완료: prisma\migrations_backup\sqlite_$timestamp" -ForegroundColor Green
 } else {
     Write-Host "⚠️  기존 마이그레이션이 없습니다." -ForegroundColor Yellow
