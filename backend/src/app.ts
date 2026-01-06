@@ -42,11 +42,16 @@ export function createApp(): Application {
     .map((o) => String(o).replace(/\/+$/, '')); // normalize trailing slash
 
   const allowVercelPreview = String(process.env.CORS_ALLOW_VERCEL_PREVIEW ?? '').toLowerCase() === 'true';
+  const isDev = (process.env.NODE_ENV ?? 'development') !== 'production';
 
   function isOriginAllowed(origin: string | undefined): boolean {
     if (!origin) return true;
     try {
       const u = new URL(origin);
+      // Dev convenience: allow any localhost port (Vite may auto-increment if 5173 is taken)
+      if (isDev && u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1' || u.hostname === '[::1]')) {
+        return true;
+      }
       origin = u.origin;
     } catch {
       // ignore parse failures; fallback to string compare
