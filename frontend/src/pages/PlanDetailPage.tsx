@@ -31,6 +31,7 @@ import {
   X,
   PanelRightOpen,
   Edit,
+  Bug,
 } from 'lucide-react';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { Button } from '../components/ui/Button';
@@ -38,6 +39,59 @@ import { Badge } from '../components/ui/Badge';
 import { TableSelect } from '../components/ui/TableSelect';
 import { TestCaseDetailColumn } from '../components/TestCaseDetailColumn';
 import { PlanEditModal } from '../components/PlanEditModal';
+
+// Jira 링크 파싱 유틸리티
+interface JiraLink {
+  ticketId: string;
+  url: string;
+}
+
+const parseJiraLinks = (defects: string | undefined): JiraLink[] => {
+  if (!defects) return [];
+
+  const links: JiraLink[] = [];
+  const urlPattern = /https?:\/\/[^\s,]+/g;
+  const matches = defects.match(urlPattern) || [];
+
+  matches.forEach((url) => {
+    const ticketMatch = url.match(/\/browse\/([A-Z]+-\d+)/i);
+    if (ticketMatch) {
+      links.push({
+        ticketId: ticketMatch[1].toUpperCase(),
+        url: url.trim(),
+      });
+    }
+  });
+
+  return links;
+};
+
+// Defects 링크 표시 컴포넌트 (테이블용 - 컴팩트)
+const DefectsCell: React.FC<{ defects: string | undefined }> = ({ defects }) => {
+  const links = parseJiraLinks(defects);
+
+  if (links.length === 0) {
+    return <span className="text-[9px] text-slate-400">—</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-0.5">
+      {links.map((link, index) => (
+        <a
+          key={index}
+          href={link.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 text-red-700 text-[9px] font-medium rounded hover:bg-red-100 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Bug size={10} />
+          {link.ticketId}
+        </a>
+      ))}
+    </div>
+  );
+};
 
 // Pie Chart Component (TestRail style)
 interface PieChartProps {
@@ -404,7 +458,7 @@ const PlanDetailPage: React.FC = () => {
   // 디테일 패널에서 업데이트 → API 호출 → 테이블 즉시 반영
   const handleDetailUpdate = async (
     itemId: string,
-    updates: { result?: TestResult; assignee?: string; comment?: string }
+    updates: { result?: TestResult; assignee?: string; comment?: string; defects?: string }
   ) => {
     if (!planId) return;
 
@@ -880,14 +934,15 @@ const PlanDetailPage: React.FC = () => {
           <div className="flex-1 overflow-auto">
             <table className="table-fixed w-full bg-white">
               <colgroup>
-                <col className="w-10" /> {/* Checkbox */}
-                <col className="w-16" /> {/* ID */}
-                <col /> {/* Title (auto) */}
-                <col className="w-[80px]" /> {/* PRI - HIGH/MEDIUM/LOW */}
-                <col className="w-[80px]" /> {/* TYPE - Auto/Manual */}
-                <col className="w-[88px]" /> {/* CATEGORY */}
-                <col className="w-[88px]" /> {/* ASSIGNEE */}
-                <col className="w-[100px]" /> {/* RESULT */}
+                <col className="w-10" />
+                <col className="w-16" />
+                <col />
+                <col className="w-[80px]" />
+                <col className="w-[80px]" />
+                <col className="w-[88px]" />
+                <col className="w-[88px]" />
+                <col className="w-[100px]" />
+                <col className="w-[80px]" />
               </colgroup>
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
@@ -924,6 +979,9 @@ const PlanDetailPage: React.FC = () => {
                   </th>
                   <th className="px-2 py-2 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider align-middle">
                     Result
+                  </th>
+                  <th className="px-2 py-2 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider align-middle">
+                    Defects
                   </th>
                 </tr>
               </thead>
@@ -1028,6 +1086,9 @@ const PlanDetailPage: React.FC = () => {
                           { value: 'BLOCK', label: 'BLOCK' },
                         ]}
                       />
+                    </td>
+                    <td className="px-2 py-2 text-center align-middle">
+                      <DefectsCell defects={item.defects} />
                     </td>
                   </tr>
                 ))}

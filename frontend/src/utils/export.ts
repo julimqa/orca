@@ -10,9 +10,165 @@ interface ExportData {
 }
 
 /**
- * Export to PDF
+ * Export to PDF using html2canvas for Korean text support
+ * Falls back to jsPDF autoTable if html2canvas is not available
  */
-export const exportToPDF = ({ plan, items }: ExportData) => {
+export const exportToPDF = async ({ plan, items }: ExportData): Promise<void> => {
+  // Try to use html2canvas for better Korean text support
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    await exportToPDFWithHtml2Canvas({ plan, items }, html2canvas);
+  } catch {
+    // Fallback to basic jsPDF if html2canvas is not available
+    exportToPDFBasic({ plan, items });
+  }
+};
+
+/**
+ * Export to PDF using html2canvas (Korean text support)
+ */
+const exportToPDFWithHtml2Canvas = async (
+  { plan, items }: ExportData,
+  html2canvas: typeof import('html2canvas').default
+): Promise<void> => {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-100000px';
+  container.style.top = '0';
+  container.style.width = '794px'; // A4 width @ 96dpi-ish
+  container.style.padding = '24px';
+  container.style.background = '#ffffff';
+  container.style.color = '#0f172a';
+  container.style.fontFamily =
+    "system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif";
+
+  const escapeHtml = (s: unknown) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const stats = items.reduce(
+    (acc, item) => {
+      acc[item.result] = (acc[item.result] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const summaryParts = Object.entries(stats)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' · ');
+
+  const rowsHtml = items
+    .map((item, idx) => {
+      const executed = item.executedAt ? new Date(item.executedAt).toLocaleString() : '-';
+      return `<tr>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;width:34px;text-align:right;">${idx + 1}</td>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;">${escapeHtml(item.testCase.title)}</td>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;width:90px;">${escapeHtml(item.assignee || '-')}</td>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;width:90px;">${escapeHtml(item.result)}</td>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;">${escapeHtml(item.comment || '-')}</td>
+        <td style="padding:8px;border:1px solid #e2e8f0;vertical-align:top;width:130px;">${escapeHtml(executed)}</td>
+      </tr>`;
+    })
+    .join('');
+
+  container.innerHTML = `
+    <div style="font-size:20px;font-weight:800;margin-bottom:8px;">Test Run Report</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;">${escapeHtml(plan.name)}</div>
+    <div style="font-size:12px;color:#475569;margin-bottom:6px;">
+      Status: <b style="color:#0f172a;">${escapeHtml(plan.status)}</b> · Total Cases: <b style="color:#0f172a;">${items.length}</b>
+    </div>
+    <div style="font-size:12px;color:#475569;margin-bottom:16px;">
+      Summary: <span style="color:#0f172a;">${escapeHtml(summaryParts || '-')}</span>
+    </div>
+
+    <table style="border-collapse:collapse;width:100%;font-size:11px;">
+      <thead>
+        <tr>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:right;width:34px;">#</th>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:left;">Title</th>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:left;width:90px;">Assignee</th>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:left;width:90px;">Result</th>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:left;">Comment</th>
+          <th style="padding:8px;border:1px solid #e2e8f0;background:#4f46e5;color:#fff;text-align:left;width:130px;">Executed</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  `;
+
+  document.body.appendChild(container);
+  try {
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 24;
+    const usableWidth = pageWidth - margin * 2;
+
+    const imgWidth = usableWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let y = margin;
+    let remainingHeight = imgHeight;
+    let sourceY = 0;
+
+    // Multi-page slicing
+    while (remainingHeight > 0) {
+      const sliceHeight = Math.min(remainingHeight, pageHeight - margin * 2);
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = Math.floor((sliceHeight * canvas.width) / imgWidth);
+      const ctx = sliceCanvas.getContext('2d');
+      if (!ctx) break;
+      ctx.drawImage(
+        canvas,
+        0,
+        Math.floor((sourceY * canvas.width) / imgWidth),
+        canvas.width,
+        sliceCanvas.height,
+        0,
+        0,
+        canvas.width,
+        sliceCanvas.height
+      );
+
+      const sliceData = sliceCanvas.toDataURL('image/png');
+      const sliceImgHeight = (sliceCanvas.height * imgWidth) / sliceCanvas.width;
+      doc.addImage(sliceData, 'PNG', margin, y, imgWidth, sliceImgHeight);
+
+      remainingHeight -= sliceHeight;
+      sourceY += sliceHeight;
+
+      if (remainingHeight > 0) {
+        doc.addPage();
+        y = margin;
+      }
+    }
+
+    doc.save(`${plan.name}_report.pdf`);
+  } finally {
+    container.remove();
+  }
+};
+
+/**
+ * Basic PDF export using jsPDF autoTable (fallback)
+ */
+const exportToPDFBasic = ({ plan, items }: ExportData) => {
   const doc = new jsPDF();
 
   // Title

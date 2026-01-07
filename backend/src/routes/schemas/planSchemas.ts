@@ -23,6 +23,7 @@ export const updatePlanItemSchema = z.object({
   result: planItemResultEnum.optional(),
   comment: z.string().optional().nullable(),
   assignee: z.string().optional().nullable(),
+  defects: z.string().optional().nullable(),
 });
 
 export const bulkUpdatePlanItemsSchema = z
@@ -31,7 +32,8 @@ export const bulkUpdatePlanItemsSchema = z
     result: planItemResultEnum.optional(),
     comment: z.string().optional().nullable(),
     assignee: z.string().optional().nullable(),
+    defects: z.string().optional().nullable(),
   })
-  .refine((data) => data.result || data.comment !== undefined || data.assignee !== undefined, {
+  .refine((data) => data.result || data.comment !== undefined || data.assignee !== undefined || data.defects !== undefined, {
     message: '변경할 필드를 하나 이상 지정해야 합니다.',
   });

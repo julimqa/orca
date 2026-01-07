@@ -10,8 +10,12 @@ import PlansPage from './pages/PlansPage';
 import CreatePlanPage from './pages/CreatePlanPage';
 import PlanDetailPage from './pages/PlanDetailPage';
 import DashboardPage from './pages/DashboardPage';
+import ReportsActivePlansPage from './pages/ReportsActivePlansPage';
+import ReportPlanPage from './pages/ReportPlanPage';
+import PublicSharePage from './pages/PublicSharePage';
 
 const routerConfig: RouteObject[] = [
+  // Public Routes (no auth required)
   {
     path: '/login',
     element: <LoginPage />,
@@ -20,6 +24,19 @@ const routerConfig: RouteObject[] = [
     path: '/register',
     element: <RegisterPage />,
   },
+  {
+    path: '/share/mock',
+    element: <PublicSharePage />,
+  },
+  {
+    path: '/share/:token',
+    element: <PublicSharePage />,
+  },
+  {
+    path: '/reports/plans/mock',
+    element: <ReportPlanPage />,
+  },
+  // Protected Routes with Layout
   {
     element: <Layout />,
     children: [
@@ -78,6 +95,30 @@ const routerConfig: RouteObject[] = [
         element: (
           <PrivateRoute>
             <SettingsPage />
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: '/reports',
+        element: (
+          <PrivateRoute>
+            <ReportsActivePlansPage />
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: '/reports/active-plans',
+        element: (
+          <PrivateRoute>
+            <Navigate to="/reports" replace />
+          </PrivateRoute>
+        ),
+      },
+      {
+        path: '/reports/plans/:planId',
+        element: (
+          <PrivateRoute>
+            <ReportPlanPage />
           </PrivateRoute>
         ),
       },

@@ -5,17 +5,17 @@ import { Header } from './Header';
 
 const Layout: React.FC = () => {
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans text-slate-900">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 flex flex-col ml-64 min-w-0 transition-all duration-300">
+      <div className="flex-1 flex flex-col ml-64 min-w-0 min-h-0 transition-all duration-300">
         {/* Top Header */}
         <Header />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-hidden relative flex flex-col">
+        <main className="flex-1 min-h-0 overflow-y-auto relative flex flex-col">
           <Outlet />
         </main>
       </div>

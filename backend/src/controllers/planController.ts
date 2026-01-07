@@ -136,10 +136,10 @@ export async function getPlanDetail(req: Request, res: Response, next: NextFunct
 export async function updatePlanItem(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { planId, itemId } = req.params;
-    const { result, comment, assignee } = req.body;
+    const { result, comment, assignee, defects } = req.body;
 
-    const item = await prisma.planItem.findFirst({
-      where: { id: itemId, planId },
+    const item = await prisma.planItem.findUnique({
+      where: { id: itemId }
     });
 
     if (!item) {
@@ -147,12 +147,17 @@ export async function updatePlanItem(req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // Update data preparation
     const updateData: any = {};
     if (result !== undefined) {
       updateData.result = result;
+      // If result is not NOT_RUN, update executedAt
       if (result !== 'NOT_RUN') {
         updateData.executedAt = new Date();
       }
+    }
+    if (defects !== undefined) {
+      updateData.defects = defects || null;
     }
     if (comment !== undefined) {
       updateData.comment = comment;
@@ -163,7 +168,7 @@ export async function updatePlanItem(req: Request, res: Response, next: NextFunc
 
     const updatedItem = await prisma.planItem.update({
       where: { id: itemId },
-      data: updateData,
+      data: updateData
     });
 
     res.json({ success: true, data: updatedItem });
@@ -177,14 +182,14 @@ export async function updatePlanItem(req: Request, res: Response, next: NextFunc
 export async function bulkUpdatePlanItems(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { planId } = req.params;
-    const { items, result, comment, assignee } = req.body; // items: array of planItemIds
+    const { items, result, comment, assignee, defects } = req.body; // items: array of planItemIds
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ success: false, message: '변경할 항목을 선택하세요.' });
       return;
     }
 
-    if (!result && !assignee && comment === undefined) {
+    if (!result && !assignee && comment === undefined && defects === undefined) {
       res.status(400).json({ success: false, message: '변경할 값을 지정하세요.' });
       return;
     }
@@ -204,6 +209,10 @@ export async function bulkUpdatePlanItems(req: Request, res: Response, next: Nex
 
     if (assignee !== undefined) {
       updateData.assignee = assignee || null;
+    }
+
+    if (defects !== undefined) {
+      updateData.defects = defects || null;
     }
 
     const updateResult = await prisma.planItem.updateMany({

@@ -113,6 +113,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       onClick={onToggle}
     >
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onSelectAll();
@@ -133,7 +134,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
         )}
       </button>
 
-      <button className="text-slate-500 hover:text-slate-700 transition-colors">
+      <button type="button" className="text-slate-500 hover:text-slate-700 transition-colors">
         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
       </button>
 

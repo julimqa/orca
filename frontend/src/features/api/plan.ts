@@ -32,6 +32,7 @@ export interface PlanItem {
   assignee?: string;
   result: TestResult;
   comment?: string;
+  defects?: string; // Jira defect links (comma-separated URLs)
   order?: number;
   executedAt?: string;
   createdAt?: string;
@@ -60,7 +61,7 @@ export const getPlanDetail = async (planId: string) => {
 export const updatePlanItem = async (
   planId: string,
   itemId: string,
-  data: { result?: TestResult; comment?: string; assignee?: string }
+  data: { result?: TestResult; comment?: string; assignee?: string; defects?: string }
 ) => {
   const response = await api.patch<{ success: boolean; data: PlanItem }>(`/plans/${planId}/items/${itemId}`, data);
   return response.data;

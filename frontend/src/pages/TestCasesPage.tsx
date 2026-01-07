@@ -20,6 +20,7 @@ import {
   updateTestCase,
   bulkUpdateTestCases,
   bulkDeleteTestCases,
+  moveTestCasesToFolder,
   AutomationType,
 } from '../api/testcase';
 import {
@@ -39,6 +40,7 @@ import {
   Download,
   Tag,
   Bot,
+  FolderInput,
 } from 'lucide-react';
 import { exportTestCasesToCSV, exportTestCasesToExcel } from '../utils/export';
 import { Button } from '../components/ui/Button';
@@ -292,6 +294,95 @@ const BulkEditModal: React.FC<BulkEditModalProps> = ({
           </Button>
           <Button variant="primary" onClick={handleApply} disabled={!hasChanges}>
             적용
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Bulk Move Modal Component
+interface BulkMoveModalProps {
+  isOpen: boolean;
+  selectedCount: number;
+  folders: FolderTreeItem[];
+  onClose: () => void;
+  onMove: (targetFolderId: string | null) => void;
+}
+
+// 폴더 트리를 평탄화하여 옵션 목록 생성
+const flattenFoldersForSelect = (
+  folders: FolderTreeItem[],
+  depth = 0
+): { id: string; name: string; depth: number }[] => {
+  const result: { id: string; name: string; depth: number }[] = [];
+  for (const folder of folders) {
+    result.push({ id: folder.id, name: folder.name, depth });
+    if (folder.children && folder.children.length > 0) {
+      result.push(...flattenFoldersForSelect(folder.children, depth + 1));
+    }
+  }
+  return result;
+};
+
+const BulkMoveModal: React.FC<BulkMoveModalProps> = ({ isOpen, selectedCount, folders, onClose, onMove }) => {
+  const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
+  const flatFolders = flattenFoldersForSelect(folders);
+
+  // 모달이 열릴 때 선택 상태 초기화
+  useEffect(() => {
+    if (isOpen) {
+      setTargetFolderId(null);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleMove = () => {
+    onMove(targetFolderId);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-slate-900">
+            <FolderInput size={20} className="inline mr-2 text-indigo-600" />
+            폴더로 이동
+          </h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-600 mb-4">
+          선택된 <span className="font-semibold text-indigo-600">{selectedCount}개</span> 테스트케이스를 이동합니다.
+        </p>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-slate-700 mb-2">대상 폴더</label>
+          <select
+            value={targetFolderId || ''}
+            onChange={(e) => setTargetFolderId(e.target.value || null)}
+            className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="">— Root (최상위) —</option>
+            {flatFolders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {'　'.repeat(folder.depth)}
+                {folder.depth > 0 ? '└ ' : ''}
+                {folder.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            취소
+          </Button>
+          <Button variant="primary" onClick={handleMove}>
+            이동
           </Button>
         </div>
       </div>
@@ -1215,6 +1306,7 @@ const TestCasesPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
+  const [isBulkMoveModalOpen, setIsBulkMoveModalOpen] = useState(false);
 
   // Export State
   const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
@@ -1645,6 +1737,22 @@ const TestCasesPage: React.FC = () => {
     }
   };
 
+  // Bulk Move
+  const handleBulkMove = () => {
+    setIsBulkMoveModalOpen(true);
+  };
+
+  const handleBulkMoveConfirm = async (targetFolderId: string | null) => {
+    try {
+      await moveTestCasesToFolder(Array.from(selectedIds), targetFolderId);
+      setIsBulkMoveModalOpen(false);
+      setSelectedIds(new Set());
+      loadTestCases(selectedFolderId);
+    } catch {
+      alert('폴더 이동에 실패했습니다.');
+    }
+  };
+
   // Export Handler
   const handleExport = (target: ExportTarget, format: ExportFormat) => {
     let casesToExport: TestCase[] = [];
@@ -1964,6 +2072,9 @@ const TestCasesPage: React.FC = () => {
               <Button size="sm" variant="outline" icon={<Edit size={14} />} onClick={handleBulkEdit}>
                 Edit
               </Button>
+              <Button size="sm" variant="outline" icon={<FolderInput size={14} />} onClick={handleBulkMove}>
+                Move
+              </Button>
               <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleBulkDelete}>
                 Delete
               </Button>
@@ -2095,6 +2206,15 @@ const TestCasesPage: React.FC = () => {
         folders={folders}
         onClose={() => setIsBulkEditModalOpen(false)}
         onApply={handleBulkEditApply}
+      />
+
+      {/* Bulk Move Modal */}
+      <BulkMoveModal
+        isOpen={isBulkMoveModalOpen}
+        selectedCount={selectedCount}
+        folders={folders}
+        onClose={() => setIsBulkMoveModalOpen(false)}
+        onMove={handleBulkMoveConfirm}
       />
 
       {/* Bulk Delete Confirm Modal */}

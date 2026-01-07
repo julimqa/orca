@@ -63,16 +63,33 @@ model TestCase {
 
 // Plan Model - 테스트 실행 계획
 model Plan {
-  id          String     @id @default(cuid())
-  name        String
-  description String?
-  status      String     @default("ACTIVE") // ACTIVE, ARCHIVED
-  createdBy   String     // 이메일 또는 이름
-  items       PlanItem[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  status           String            @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdBy        String            // 이메일 또는 이름
+  items            PlanItem[]
+  reportShareLinks ReportShareLink[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@map("plans")
+}
+
+// ReportShareLink Model - 리포트 공유 링크 (Public View)
+model ReportShareLink {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  planId          String
+  plan            Plan      @relation(fields: [planId], references: [id])
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+
+  @@index([planId])
+  @@index([expiresAt])
+  @@map("report_share_links")
 }
 
 // PlanItem Model - 플랜 내 개별 테스트케이스 실행 정보
@@ -85,6 +102,7 @@ model PlanItem {
   assignee    String?   // 담당자
   result      String    @default("NOT_RUN") // NOT_RUN, PASS, FAIL, BLOCK
   comment     String?
+  defects     String?   // Jira defect links (comma-separated URLs)
   order       Float     @default(0) // 플랜 내 정렬 순서
   executedAt  DateTime?
   createdAt   DateTime  @default(now())
