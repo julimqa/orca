@@ -22,7 +22,10 @@ import {
   moveTestCasesSchema,
 } from './schemas/testcaseSchemas';
 
-const upload = multer({ dest: 'uploads/' });
+// Vercel serverless는 /tmp만 쓰기 가능
+const isVercel = process.env.VERCEL === '1';
+const uploadDest = isVercel ? '/tmp/uploads' : 'uploads';
+const upload = multer({ dest: uploadDest });
 const router = express.Router();
 
 router.get('/', authenticateToken, getTestCases);

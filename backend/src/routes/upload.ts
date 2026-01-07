@@ -6,8 +6,9 @@ import { authenticateToken } from '../middleware/auth';
 import { Request, Response } from 'express';
 import { logger } from '../lib/logger';
 
-// 업로드 디렉토리 설정
-const uploadDir = 'uploads/images';
+// 업로드 디렉토리 설정 (Vercel serverless는 /tmp만 쓰기 가능)
+const isVercel = process.env.VERCEL === '1';
+const uploadDir = isVercel ? '/tmp/uploads/images' : 'uploads/images';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
