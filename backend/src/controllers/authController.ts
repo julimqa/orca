@@ -37,7 +37,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       res.cookie('access_token', result.body.accessToken, {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'lax',
+        sameSite: isProd ? 'none' : 'lax', // cross-origin 쿠키는 'none' 필요
         maxAge: 7 * ONE_DAY_MS,
         path: '/',
       });

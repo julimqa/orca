@@ -11,7 +11,7 @@ function issueToken(res: Response): string {
   res.cookie(CSRF_COOKIE, token, {
     httpOnly: false, // double submit cookie 패턴 (클라이언트가 읽어 헤더로 보냄)
     secure: isProd,
-    sameSite: 'lax',
+    sameSite: isProd ? 'none' : 'lax', // cross-origin 쿠키는 'none' 필요
     maxAge: maxAgeMs,
     path: '/',
   });
