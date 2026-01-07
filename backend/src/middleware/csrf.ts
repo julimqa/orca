@@ -24,21 +24,27 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
   const path = req.path || '';
 
   const existingToken = req.cookies?.[CSRF_COOKIE] as string | undefined;
-  const token = existingToken ?? issueToken(res);
+  
+  // 토큰이 없으면 새로 발급
+  if (!existingToken) {
+    issueToken(res);
+  }
 
   // access_token 쿠키 기반 인증일 때만 CSRF 검증 강제
   const hasSessionCookie = Boolean(req.cookies?.[ACCESS_COOKIE]);
   const hasBearerAuth =
     typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ');
 
-  // 로그인/회원가입은 CSRF 검사 생략 (세션 쿠키 존재 시에도 허용)
+  // 로그인/회원가입은 CSRF 검사 생략
   if (path.startsWith('/api/auth/login') || path.startsWith('/api/auth/register')) {
     return next();
   }
 
-  if (!isSafe && hasSessionCookie && !hasBearerAuth) {
+  // Cross-origin 환경에서는 CSRF 쿠키가 전달되지 않을 수 있음
+  // 이 경우 헤더 토큰만 확인하고, 쿠키가 없으면 검증 스킵
+  if (!isSafe && hasSessionCookie && !hasBearerAuth && existingToken) {
     const headerToken = (req.headers['x-csrf-token'] as string | undefined)?.trim();
-    if (!headerToken || headerToken !== token) {
+    if (!headerToken || headerToken !== existingToken) {
       res.status(403).json({ success: false, message: 'Invalid CSRF token' });
       return;
     }
