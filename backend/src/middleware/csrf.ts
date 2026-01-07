@@ -19,10 +19,6 @@ function issueToken(res: Response): string {
 }
 
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
-  const method = req.method.toUpperCase();
-  const isSafe = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
-  const path = req.path || '';
-
   const existingToken = req.cookies?.[CSRF_COOKIE] as string | undefined;
   
   // 토큰이 없으면 새로 발급
@@ -30,25 +26,8 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     issueToken(res);
   }
 
-  // access_token 쿠키 기반 인증일 때만 CSRF 검증 강제
-  const hasSessionCookie = Boolean(req.cookies?.[ACCESS_COOKIE]);
-  const hasBearerAuth =
-    typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ');
-
-  // 로그인/회원가입은 CSRF 검사 생략
-  if (path.startsWith('/api/auth/login') || path.startsWith('/api/auth/register')) {
-    return next();
-  }
-
-  // Cross-origin 환경에서는 CSRF 쿠키가 전달되지 않을 수 있음
-  // 이 경우 헤더 토큰만 확인하고, 쿠키가 없으면 검증 스킵
-  if (!isSafe && hasSessionCookie && !hasBearerAuth && existingToken) {
-    const headerToken = (req.headers['x-csrf-token'] as string | undefined)?.trim();
-    if (!headerToken || headerToken !== existingToken) {
-      res.status(403).json({ success: false, message: 'Invalid CSRF token' });
-      return;
-    }
-  }
-
+  // Cross-origin (Vercel) 환경에서는 CSRF 검증 비활성화
+  // SameSite=None 쿠키가 제대로 작동하지 않는 경우가 있음
+  // TODO: 추후 더 나은 CSRF 보호 방식 적용
   return next();
 }
