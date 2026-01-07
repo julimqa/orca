@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm install --include=dev && npx --yes tsc && npx prisma generate",
   "builds": [
     {
       "src": "dist/index.js",
