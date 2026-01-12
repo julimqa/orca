@@ -31,6 +31,7 @@ const DB_FIELDS = [
     required: false,
     description: '사용자 정의 카테고리 (예: Smoke, Regression)',
   },
+  { key: 'folderName', label: 'Folder (폴더)', required: false, description: '폴더 이름 (없으면 자동 생성)' },
 ];
 
 // 자동 매핑을 위한 키워드 매칭
@@ -43,6 +44,7 @@ const FIELD_KEYWORDS: Record<string, string[]> = {
   priority: ['priority', 'importance', 'severity', '우선순위', '중요도'],
   automationType: ['automation', 'type', 'automated', 'manual', '자동화', '타입', '유형'],
   category: ['category', 'tag', 'label', 'group', '카테고리', '태그', '분류', '그룹'],
+  folderName: ['folder', 'foldername', 'folder name', 'directory', '폴더', '폴더명', '디렉토리'],
 };
 
 // 자동 매핑 함수
@@ -73,6 +75,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<{ successCount: number; failureCount: number; failures: any[] } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [totalRowCount, setTotalRowCount] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,6 +97,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
     setMapping({});
     setResult(null);
     setShowPreview(false);
+    setTotalRowCount(0);
   };
 
   const handleClose = () => {
@@ -108,6 +112,15 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
     if (selectedFile) {
       setFile(selectedFile);
       setResult(null);
+
+      // 전체 행 수 파싱
+      Papa.parse(selectedFile, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (fullResults) => {
+          setTotalRowCount(fullResults.data.length);
+        },
+      });
 
       // CSV 파싱 (헤더 + 미리보기 데이터)
       Papa.parse(selectedFile, {
@@ -282,7 +295,8 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
                   <div>
                     <p className="font-medium text-slate-900">{file?.name}</p>
                     <p className="text-sm text-slate-500">
-                      {headers.length}개 컬럼 · {previewData.length}행 미리보기
+                      {headers.length}개 컬럼 · <span className="text-indigo-600 font-medium">{totalRowCount}개 케이스</span>{' '}
+                      Import 예정
                     </p>
                   </div>
                 </div>
@@ -480,7 +494,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({ isOpen, onClose,
                       Import 중...
                     </>
                   ) : (
-                    `Import 실행 (${previewData.length}행)`
+                    'Import 실행'
                   )}
                 </Button>
               </>

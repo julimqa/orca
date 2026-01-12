@@ -420,10 +420,14 @@ const CreatePlanPage: React.FC = () => {
 
     try {
       setIsSubmitting(true);
+
+      // 선택된 테스트케이스를 /cases 페이지 순서(sequence)대로 정렬
+      const orderedTestCaseIds = testCases.filter((tc) => selectedIds.has(tc.id)).map((tc) => tc.id);
+
       const response = await createPlan({
         name,
         description,
-        testCaseIds: Array.from(selectedIds),
+        testCaseIds: orderedTestCaseIds,
       });
       if (response.success) {
         navigate('/plans');

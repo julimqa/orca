@@ -138,58 +138,208 @@ export class TestCaseService {
     mapping?: string;
   }): Promise<ServiceResult> {
     const { filePath, folderId, mapping } = input;
-    const headerMapping = mapping ? JSON.parse(mapping) : {};
+    const rawHeaderMapping = mapping ? JSON.parse(mapping) : {};
+
+    // 매핑 키도 trim 처리 (CSV 헤더에 공백이 있을 수 있음)
+    const headerMapping: Record<string, string> = {};
+    for (const [key, value] of Object.entries(rawHeaderMapping)) {
+      headerMapping[key.trim()] = value as string;
+    }
 
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     const records = parse(fileContent, {
       columns: true,
       skip_empty_lines: true,
-      trim: true,
+      trim: false, // 줄바꿈 보존을 위해 trim 비활성화
+      relax_quotes: true, // 따옴표 처리 완화
+      relax_column_count: true, // 컬럼 수 불일치 허용
     }) as any[];
+
+    // 각 필드의 앞뒤 공백만 제거 (줄바꿈은 보존)
+    const trimmedRecords = records.map((row) => {
+      const trimmedRow: any = {};
+      for (const [key, value] of Object.entries(row)) {
+        if (typeof value === 'string') {
+          trimmedRow[key.trim()] = value.replace(/^[\t ]+|[\t ]+$/g, '');
+        } else {
+          trimmedRow[key.trim()] = value;
+        }
+      }
+      return trimmedRow;
+    });
 
     let successCount = 0;
     let failureCount = 0;
     const failures: any[] = [];
 
-    const lastCase = await prisma.testCase.findFirst({
-      where: { folderId: folderId || null },
-      orderBy: { sequence: 'desc' },
+    // 폴더 이름 -> ID 매핑 캐시 생성
+    const allFolders = await prisma.folder.findMany({
+      select: { id: true, name: true },
     });
-    let currentSequence = lastCase?.sequence || 0;
+    const folderNameToId: Record<string, string> = {};
+    for (const folder of allFolders) {
+      folderNameToId[folder.name.toLowerCase()] = folder.id;
+    }
+
+    // 폴더 순서를 추적하기 위한 캐시 (parentId별로 현재 최대 order 저장)
+    const folderOrderCache: Record<string, number> = {};
+
+    // 폴더 생성 함수 (없으면 생성, 있으면 기존 ID 반환)
+    const getOrCreateFolder = async (folderName: string, parentFolderId: string | null): Promise<string> => {
+      const normalizedName = folderName.trim().toLowerCase();
+
+      // 이미 캐시에 있으면 반환
+      if (folderNameToId[normalizedName]) {
+        return folderNameToId[normalizedName];
+      }
+
+      // 부모별 order 캐시 키
+      const orderCacheKey = parentFolderId || '__root__';
+
+      // 캐시에 order가 없으면 DB에서 최대값 조회
+      if (folderOrderCache[orderCacheKey] === undefined) {
+        const maxOrderFolder = await prisma.folder.findFirst({
+          where: { parentId: parentFolderId },
+          orderBy: { order: 'desc' },
+        });
+        folderOrderCache[orderCacheKey] = maxOrderFolder?.order || 0;
+      }
+
+      // 다음 order 값 계산
+      folderOrderCache[orderCacheKey] += 1;
+      const newOrder = folderOrderCache[orderCacheKey];
+
+      // 폴더 생성 (order 포함)
+      const newFolder = await prisma.folder.create({
+        data: {
+          name: folderName.trim(),
+          parentId: parentFolderId,
+          order: newOrder,
+        },
+      });
+
+      // 캐시에 추가
+      folderNameToId[normalizedName] = newFolder.id;
+
+      return newFolder.id;
+    };
 
     let currentCaseNumber = (await getNextCaseNumber()) - 1;
 
+    // 폴더별로 sequence를 관리하기 위한 캐시
+    const folderSequenceCache: Record<string, number> = {};
+
+    const getNextSequence = async (targetFolderId: string | null): Promise<number> => {
+      const cacheKey = targetFolderId || '__root__';
+      if (folderSequenceCache[cacheKey] === undefined) {
+        const lastCase = await prisma.testCase.findFirst({
+          where: { folderId: targetFolderId },
+          orderBy: { sequence: 'desc' },
+        });
+        folderSequenceCache[cacheKey] = lastCase?.sequence || 0;
+      }
+      folderSequenceCache[cacheKey] += 1;
+      return folderSequenceCache[cacheKey];
+    };
+
     const testCasesToCreate: any[] = [];
 
-    for (const [index, row] of records.entries()) {
+    // 줄바꿈을 <br> 태그로 변환하는 헬퍼 함수
+    const convertNewlinesToBr = (text: string): string => {
+      if (!text) return text;
+      // 이미 HTML 태그가 있으면 변환하지 않음
+      if (/<[^>]+>/.test(text)) return text;
+      // \r\n 또는 \n을 <br>로 변환
+      return text.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
+    };
+
+    // 이전 행의 값을 저장하기 위한 캐시 (빈 값일 때 이전 값으로 채우기 위함)
+    const previousRowValues: Record<string, string> = {};
+
+    const dbFields = [
+      'title',
+      'description',
+      'precondition',
+      'steps',
+      'expectedResult',
+      'priority',
+      'automationType',
+      'category',
+      'folderName',
+    ];
+    // 줄바꿈을 <br> 태그로 변환해야 하는 필드들 (RichTextEditor로 표시되는 필드)
+    const richTextFields = ['precondition', 'steps', 'expectedResult', 'description'];
+
+    for (const [index, row] of trimmedRecords.entries()) {
       try {
         const testCaseData: any = {
-          folderId: folderId || null,
+          folderId: folderId || null, // 기본값: 현재 선택된 폴더
           priority: 'MEDIUM',
           automationType: 'MANUAL',
           category: null,
         };
 
-        const dbFields = [
-          'title',
-          'description',
-          'precondition',
-          'steps',
-          'expectedResult',
-          'priority',
-          'automationType',
-          'category',
-        ];
-
         if (Object.keys(headerMapping).length > 0) {
           for (const [csvHeader, dbField] of Object.entries(headerMapping)) {
-            if (row[csvHeader]) {
-              testCaseData[dbField as string] = row[csvHeader];
+            let value = row[csvHeader];
+
+            // 값이 비어있으면 이전 행의 값 사용
+            if (!value && previousRowValues[csvHeader]) {
+              value = previousRowValues[csvHeader];
+            }
+
+            // 현재 값을 캐시에 저장 (비어있지 않은 경우에만)
+            if (value) {
+              previousRowValues[csvHeader] = value;
+            }
+
+            if (value) {
+              // folderName 필드 처리: 폴더 이름을 ID로 변환 (없으면 생성)
+              if (dbField === 'folderName') {
+                const trimmedName = value.trim();
+                if (trimmedName) {
+                  testCaseData.folderId = await getOrCreateFolder(trimmedName, folderId || null);
+                }
+                continue; // folderName은 testCaseData에 직접 저장하지 않음
+              }
+
+              // RichText 필드는 줄바꿈을 <br>로 변환
+              if (richTextFields.includes(dbField as string)) {
+                value = convertNewlinesToBr(value);
+              }
+              testCaseData[dbField as string] = value;
             }
           }
         } else {
           for (const field of dbFields) {
-            if (row[field]) testCaseData[field] = row[field];
+            let value = row[field];
+
+            // 값이 비어있으면 이전 행의 값 사용
+            if (!value && previousRowValues[field]) {
+              value = previousRowValues[field];
+            }
+
+            // 현재 값을 캐시에 저장 (비어있지 않은 경우에만)
+            if (value) {
+              previousRowValues[field] = value;
+            }
+
+            if (value) {
+              // folderName 필드 처리 (없으면 생성)
+              if (field === 'folderName') {
+                const trimmedName = value.trim();
+                if (trimmedName) {
+                  testCaseData.folderId = await getOrCreateFolder(trimmedName, folderId || null);
+                }
+                continue;
+              }
+
+              // RichText 필드는 줄바꿈을 <br>로 변환
+              if (richTextFields.includes(field)) {
+                value = convertNewlinesToBr(value);
+              }
+              testCaseData[field] = value;
+            }
           }
         }
 
@@ -197,9 +347,10 @@ export class TestCaseService {
           throw new Error('제목(title)이 누락되었습니다.');
         }
 
-        currentSequence += 1;
+        // 해당 폴더의 다음 sequence 가져오기
+        const nextSequence = await getNextSequence(testCaseData.folderId);
         currentCaseNumber += 1;
-        testCaseData.sequence = currentSequence;
+        testCaseData.sequence = nextSequence;
         testCaseData.caseNumber = currentCaseNumber;
 
         testCasesToCreate.push(testCaseData);
