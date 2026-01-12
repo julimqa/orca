@@ -567,7 +567,7 @@ const ReportPlanPage: React.FC = () => {
               ) : shareError ? (
                 <div className="text-sm text-rose-600">{shareError}</div>
               ) : shareLinks.length === 0 ? (
-                <div className="text-sm text-slate-500">공유 링크가 없습니다. "Create link"로 생성하세요.</div>
+                <div className="text-sm text-slate-500">공유 링크가 없습니다. &quot;Create link&quot;로 생성하세요.</div>
               ) : (
                 <div className="space-y-3">
                   {shareLinks.map((l) => (
