@@ -5,6 +5,7 @@ interface DonutChartProps {
   size?: number;
   strokeWidth?: number;
   color?: string;
+  label?: string;
 }
 
 /**

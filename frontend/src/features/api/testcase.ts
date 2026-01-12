@@ -6,7 +6,7 @@ export interface TestCase {
   id: string;
   caseNumber?: number; // OVDR 형식 ID용 자동 증가 번호
   title: string;
-  description?: string;
+  description?: string | null;
   precondition?: string;
   steps?: string;
   expectedResult?: string;
@@ -14,8 +14,8 @@ export interface TestCase {
   automationType: AutomationType;
   category?: string | null; // 사용자 정의 카테고리
   sequence: number;
-  folderId?: string;
-  folder?: { id: string; name: string; parentId?: string | null }; // 폴더 정보
+  folderId?: string | null;
+  folder?: { id: string; name: string; parentId?: string | null } | null; // 폴더 정보
   folderPath?: { id: string; name: string }[]; // 폴더 경로 (상위 > 하위)
   createdAt: string;
   updatedAt?: string;
