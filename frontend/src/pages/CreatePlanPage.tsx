@@ -14,6 +14,8 @@ import {
   ArrowUp,
   ArrowDown,
   X,
+  FolderOpen,
+  Folder,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -39,6 +41,26 @@ interface Section {
   depth: number;
   testCases: TestCase[];
 }
+
+// 특정 섹션과 모든 하위 섹션의 테스트케이스 ID를 수집하는 헬퍼 함수
+const getAllTestCaseIdsInSectionAndDescendants = (sectionId: string, sections: Section[]): string[] => {
+  const ids: string[] = [];
+
+  // 현재 섹션의 테스트케이스 추가
+  const currentSection = sections.find((s) => s.id === sectionId);
+  if (currentSection) {
+    ids.push(...currentSection.testCases.map((tc) => tc.id));
+  }
+
+  // 하위 섹션들 찾기 (parentId가 현재 sectionId인 섹션들)
+  const childSections = sections.filter((s) => s.parentId === sectionId);
+  for (const child of childSections) {
+    // 재귀적으로 하위 섹션의 테스트케이스도 수집
+    ids.push(...getAllTestCaseIdsInSectionAndDescendants(child.id, sections));
+  }
+
+  return ids;
+};
 
 // 폴더 구조를 섹션으로 변환하는 함수
 const buildSections = (
@@ -85,9 +107,37 @@ const buildSections = (
   return sections;
 };
 
-// Section Header Component
+// Top Level Folder Header Component (최상위 폴더 헤더 - Studio 스타일)
+interface TopLevelFolderHeaderProps {
+  name: string;
+  count: number;
+  isAllSelected: boolean;
+  onSelectAll: () => void;
+}
+
+const TopLevelFolderHeader: React.FC<TopLevelFolderHeaderProps> = ({ name, count, isAllSelected, onSelectAll }) => {
+  return (
+    <div className="flex items-center gap-2 py-3 px-4 bg-slate-100 border-b border-slate-200">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectAll();
+        }}
+        className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
+      >
+        {isAllSelected ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} />}
+      </button>
+      <FolderOpen size={16} className="text-slate-600" />
+      <span className="font-bold text-slate-800 text-sm">{name}</span>
+      <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">{count}</span>
+    </div>
+  );
+};
+
+// Section Header Component (하위 폴더 헤더)
 interface SectionHeaderProps {
-  section: { id: string; name: string };
+  section: { id: string; name: string; depth?: number };
   count: number;
   selectedCount: number;
   isExpanded: boolean;
@@ -107,10 +157,14 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   isSomeSelected,
   onSelectAll,
 }) => {
+  const depth = (section as { depth?: number }).depth || 0;
+  const displayDepth = depth === 0 ? 1 : depth;
+
   return (
     <div
-      className="flex items-center gap-3 py-3 px-4 bg-slate-100 border-b border-slate-200 cursor-pointer hover:bg-slate-150 transition-colors"
+      className="flex items-center gap-2 py-2 px-4 bg-white border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
       onClick={onToggle}
+      style={{ paddingLeft: `${16 + displayDepth * 20}px` }}
     >
       <button
         type="button"
@@ -121,31 +175,31 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
         className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
       >
         {isAllSelected ? (
-          <CheckSquare size={18} className="text-indigo-600" />
+          <CheckSquare size={16} className="text-indigo-600" />
         ) : isSomeSelected ? (
           <div className="relative">
-            <Square size={18} className="text-indigo-400" />
+            <Square size={16} className="text-indigo-400" />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-2 h-2 bg-indigo-400 rounded-sm"></div>
             </div>
           </div>
         ) : (
-          <Square size={18} />
+          <Square size={16} />
         )}
       </button>
 
       <button type="button" className="text-slate-500 hover:text-slate-700 transition-colors">
-        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
 
-      <span className="font-semibold text-slate-800 text-sm">{section.name}</span>
+      <Folder size={14} className="text-amber-500" />
 
-      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs font-medium rounded-full">{count}</span>
+      <span className="font-semibold text-slate-700 text-sm">{section.name}</span>
+
+      <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{count}</span>
 
       {selectedCount > 0 && (
-        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
-          {selectedCount}개 선택
-        </span>
+        <span className="text-[10px] text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">{selectedCount}개 선택</span>
       )}
     </div>
   );
@@ -382,19 +436,6 @@ const CreatePlanPage: React.FC = () => {
     setSelectedIds(newSelected);
   };
 
-  const handleSelectAllInSection = (sectionTestCases: TestCase[]) => {
-    const sectionIds = sectionTestCases.map((tc) => tc.id);
-    const allSelected = sectionIds.every((id) => selectedIds.has(id));
-
-    const newSelected = new Set(selectedIds);
-    if (allSelected) {
-      sectionIds.forEach((id) => newSelected.delete(id));
-    } else {
-      sectionIds.forEach((id) => newSelected.add(id));
-    }
-    setSelectedIds(newSelected);
-  };
-
   const handleClearSelection = () => {
     setSelectedIds(new Set());
   };
@@ -554,60 +595,122 @@ const CreatePlanPage: React.FC = () => {
               </div>
             ) : (
               <div>
-                {sections.map((section) => {
-                  const sectionTestCases = getSortedTestCases(section);
-                  if (sectionTestCases.length === 0) return null;
+                {(() => {
+                  // 최상위 폴더별로 그룹화
+                  const topLevelFolders = new Map<string, Section[]>();
+                  let currentTopLevelId: string | null = null;
 
-                  const isExpanded = expandedSections.has(section.id);
-                  const sectionIds = sectionTestCases.map((tc) => tc.id);
-                  const sectionSelectedCount = sectionIds.filter((id) => selectedIds.has(id)).length;
-                  const isAllSelected = sectionIds.length > 0 && sectionIds.every((id) => selectedIds.has(id));
-                  const isSomeSelected = sectionSelectedCount > 0 && !isAllSelected;
-                  const sortState = sectionSortState[section.id] || { field: null, direction: 'asc' };
+                  sections.forEach((section) => {
+                    if (section.depth === 0) {
+                      currentTopLevelId = section.id;
+                      topLevelFolders.set(section.id, [section]);
+                    } else if (currentTopLevelId) {
+                      topLevelFolders.get(currentTopLevelId)?.push(section);
+                    }
+                  });
 
-                  return (
-                    <div
-                      key={section.id}
-                      className="border-b border-slate-200 last:border-b-0"
-                      style={{ marginLeft: `${section.depth * 16}px` }}
-                    >
-                      {/* Section Header */}
-                      <SectionHeader
-                        section={section}
-                        count={sectionTestCases.length}
-                        selectedCount={sectionSelectedCount}
-                        isExpanded={isExpanded}
-                        onToggle={() => handleToggleSection(section.id)}
-                        isAllSelected={isAllSelected}
-                        isSomeSelected={isSomeSelected}
-                        onSelectAll={() => handleSelectAllInSection(sectionTestCases)}
-                      />
+                  return Array.from(topLevelFolders.entries()).map(([topLevelId, folderSections]) => {
+                    const topLevelSection = folderSections[0];
+                    // 최상위 폴더와 모든 하위 폴더의 테스트케이스 ID 수집
+                    const allTestCaseIdsInTopLevel = folderSections.flatMap((section) =>
+                      section.testCases.map((tc) => tc.id)
+                    );
+                    const isTopLevelAllSelected =
+                      allTestCaseIdsInTopLevel.length > 0 &&
+                      allTestCaseIdsInTopLevel.every((id) => selectedIds.has(id));
 
-                      {/* Section Table */}
-                      {isExpanded && (
-                        <table className="min-w-full">
-                          <thead>
-                            <SectionTableHeader
-                              sectionId={section.id}
-                              sortState={sortState}
-                              onSort={handleSortSection}
-                            />
-                          </thead>
-                          <tbody>
-                            {sectionTestCases.map((tc) => (
-                              <TestCaseRow
-                                key={tc.id}
-                                testCase={tc}
-                                isSelected={selectedIds.has(tc.id)}
-                                onToggleSelect={handleToggleSelect}
+                    // 최상위 폴더 전체 선택/해제 핸들러
+                    const handleTopLevelSelectAll = () => {
+                      const newSelected = new Set(selectedIds);
+                      if (isTopLevelAllSelected) {
+                        allTestCaseIdsInTopLevel.forEach((id) => newSelected.delete(id));
+                      } else {
+                        allTestCaseIdsInTopLevel.forEach((id) => newSelected.add(id));
+                      }
+                      setSelectedIds(newSelected);
+                    };
+
+                    return (
+                      <div key={topLevelId} className="border-b border-slate-200 last:border-b-0">
+                        {/* Top Level Folder Header (Studio 스타일) */}
+                        <TopLevelFolderHeader
+                          name={topLevelSection.name}
+                          count={allTestCaseIdsInTopLevel.length}
+                          isAllSelected={isTopLevelAllSelected}
+                          onSelectAll={handleTopLevelSelectAll}
+                        />
+
+                        {/* 하위 폴더들 */}
+                        {folderSections.map((section) => {
+                          const sectionTestCases = getSortedTestCases(section);
+                          // 최상위 폴더 자체의 테스트케이스가 없고 depth가 0이면 헤더만 표시했으므로 스킵
+                          if (section.depth === 0 && sectionTestCases.length === 0) return null;
+                          // 하위 폴더인데 테스트케이스가 없으면 스킵
+                          if (section.depth > 0 && sectionTestCases.length === 0) return null;
+
+                          const isExpanded = expandedSections.has(section.id);
+                          // 하위 폴더 포함하여 전체 선택 여부 확인
+                          const allIdsInSection = getAllTestCaseIdsInSectionAndDescendants(section.id, sections);
+                          const sectionSelectedCount = allIdsInSection.filter((id) => selectedIds.has(id)).length;
+                          const isAllSelected =
+                            allIdsInSection.length > 0 && allIdsInSection.every((id) => selectedIds.has(id));
+                          const isSomeSelected = sectionSelectedCount > 0 && !isAllSelected;
+                          const sortState = sectionSortState[section.id] || { field: null, direction: 'asc' };
+
+                          // 섹션과 하위 섹션의 모든 테스트케이스 선택/해제
+                          const handleSectionSelectAll = () => {
+                            const newSelected = new Set(selectedIds);
+                            if (isAllSelected) {
+                              allIdsInSection.forEach((id) => newSelected.delete(id));
+                            } else {
+                              allIdsInSection.forEach((id) => newSelected.add(id));
+                            }
+                            setSelectedIds(newSelected);
+                          };
+
+                          return (
+                            <div key={section.id}>
+                              {/* Section Header */}
+                              <SectionHeader
+                                section={section}
+                                count={sectionTestCases.length}
+                                selectedCount={sectionSelectedCount}
+                                isExpanded={isExpanded}
+                                onToggle={() => handleToggleSection(section.id)}
+                                isAllSelected={isAllSelected}
+                                isSomeSelected={isSomeSelected}
+                                onSelectAll={handleSectionSelectAll}
                               />
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  );
-                })}
+
+                              {/* Section Table */}
+                              {isExpanded && (
+                                <table className="min-w-full">
+                                  <thead>
+                                    <SectionTableHeader
+                                      sectionId={section.id}
+                                      sortState={sortState}
+                                      onSort={handleSortSection}
+                                    />
+                                  </thead>
+                                  <tbody>
+                                    {sectionTestCases.map((tc) => (
+                                      <TestCaseRow
+                                        key={tc.id}
+                                        testCase={tc}
+                                        isSelected={selectedIds.has(tc.id)}
+                                        onToggleSelect={handleToggleSelect}
+                                      />
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>

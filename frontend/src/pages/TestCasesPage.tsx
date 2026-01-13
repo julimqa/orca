@@ -41,6 +41,8 @@ import {
   Tag,
   Bot,
   FolderInput,
+  FolderOpen,
+  Folder,
 } from 'lucide-react';
 import { exportTestCasesToCSV, exportTestCasesToExcel } from '../utils/export';
 import { Button } from '../components/ui/Button';
@@ -522,9 +524,37 @@ const ExportDropdown: React.FC<ExportDropdownProps> = ({
   );
 };
 
-// Section Header Component
+// Top Level Folder Header Component (최상위 폴더 헤더 - Studio 스타일)
+interface TopLevelFolderHeaderProps {
+  name: string;
+  count: number;
+  isAllSelected: boolean;
+  onSelectAll: () => void;
+}
+
+const TopLevelFolderHeader: React.FC<TopLevelFolderHeaderProps> = ({ name, count, isAllSelected, onSelectAll }) => {
+  return (
+    <div className="flex items-center gap-2 py-3 px-4 bg-slate-100 border-b border-slate-200">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectAll();
+        }}
+        className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
+      >
+        {isAllSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
+      </button>
+      <FolderOpen size={16} className="text-slate-600" />
+      <span className="font-bold text-slate-800 text-sm">{name}</span>
+      <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">{count}</span>
+    </div>
+  );
+};
+
+// Section Header Component (하위 폴더 헤더)
 interface SectionHeaderProps {
-  section: { id: string; name: string };
+  section: { id: string; name: string; depth?: number };
   count: number;
   isExpanded: boolean;
   onToggle: () => void;
@@ -540,28 +570,35 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   isAllSelected,
   onSelectAll,
 }) => {
+  const depth = section.depth || 0;
+  const displayDepth = depth === 0 ? 1 : depth;
+
   return (
     <div
-      className="flex items-center gap-3 py-3 px-4 bg-slate-100 border-b border-slate-200 cursor-pointer hover:bg-slate-150 transition-colors"
+      className="flex items-center gap-2 py-2 px-4 bg-white border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
       onClick={onToggle}
+      style={{ paddingLeft: `${16 + displayDepth * 20}px` }}
     >
       <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onSelectAll();
         }}
         className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
       >
-        {isAllSelected ? <CheckSquare size={18} className="text-indigo-600" /> : <Square size={18} />}
+        {isAllSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
       </button>
 
-      <button className="text-slate-500 hover:text-slate-700 transition-colors">
-        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+      <button type="button" className="text-slate-500 hover:text-slate-700 transition-colors">
+        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
       </button>
 
-      <span className="font-semibold text-slate-800 text-sm">{section.name}</span>
+      <Folder size={14} className="text-amber-500" />
 
-      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs font-medium rounded-full">{count}</span>
+      <span className="font-semibold text-slate-700 text-sm">{section.name}</span>
+
+      <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{count}</span>
     </div>
   );
 };
@@ -2106,54 +2143,109 @@ const TestCasesPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {sections.map((section) => {
-                const sectionTestCases = getSortedTestCases(section);
-                if (sectionTestCases.length === 0) return null;
+              {(() => {
+                // 최상위 폴더별로 그룹화
+                const topLevelFolders = new Map<string, Section[]>();
+                let currentTopLevelId: string | null = null;
 
-                const isExpanded = expandedSections.has(section.id);
-                // 하위 폴더 포함하여 전체 선택 여부 확인
-                const isAllSelected = isSectionFullySelected(section.id);
-                const sortState = sectionSortState[section.id] || { field: null, direction: 'asc' };
+                sections.forEach((section) => {
+                  if (section.depth === 0) {
+                    currentTopLevelId = section.id;
+                    topLevelFolders.set(section.id, [section]);
+                  } else if (currentTopLevelId) {
+                    topLevelFolders.get(currentTopLevelId)?.push(section);
+                  }
+                });
 
-                return (
-                  <div
-                    key={section.id}
-                    className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"
-                    style={{ marginLeft: `${section.depth * 16}px` }}
-                  >
-                    {/* Section Header */}
-                    <SectionHeader
-                      section={section}
-                      count={sectionTestCases.length}
-                      isExpanded={isExpanded}
-                      onToggle={() => handleToggleSection(section.id)}
-                      isAllSelected={isAllSelected}
-                      onSelectAll={() => handleSelectAllInSection(section.id)}
-                    />
+                return Array.from(topLevelFolders.entries()).map(([topLevelId, folderSections]) => {
+                  const topLevelSection = folderSections[0];
+                  // 최상위 폴더와 모든 하위 폴더의 테스트케이스 ID 수집
+                  const allTestCaseIdsInTopLevel = folderSections.flatMap((section) =>
+                    section.testCases.map((tc) => tc.id)
+                  );
+                  const isTopLevelAllSelected =
+                    allTestCaseIdsInTopLevel.length > 0 && allTestCaseIdsInTopLevel.every((id) => selectedIds.has(id));
 
-                    {/* Section Table */}
-                    {isExpanded && (
-                      <table className="min-w-full">
-                        <thead>
-                          <SectionTableHeader sectionId={section.id} sortState={sortState} onSort={handleSortSection} />
-                        </thead>
-                        <tbody>
-                          {sectionTestCases.map((tc) => (
-                            <TestCaseRow
-                              key={tc.id}
-                              testCase={tc}
-                              isSelected={selectedIds.has(tc.id)}
-                              isDetailOpen={selectedTestCase?.id === tc.id && isDetailPanelOpen}
-                              onToggleSelect={handleToggleSelect}
-                              onOpenDetail={handleOpenDetail}
+                  // 최상위 폴더 전체 선택/해제 핸들러
+                  const handleTopLevelSelectAll = () => {
+                    const newSelected = new Set(selectedIds);
+                    if (isTopLevelAllSelected) {
+                      allTestCaseIdsInTopLevel.forEach((id) => newSelected.delete(id));
+                    } else {
+                      allTestCaseIdsInTopLevel.forEach((id) => newSelected.add(id));
+                    }
+                    setSelectedIds(newSelected);
+                  };
+
+                  return (
+                    <div
+                      key={topLevelId}
+                      className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden"
+                    >
+                      {/* Top Level Folder Header (Studio 스타일) */}
+                      <TopLevelFolderHeader
+                        name={topLevelSection.name}
+                        count={allTestCaseIdsInTopLevel.length}
+                        isAllSelected={isTopLevelAllSelected}
+                        onSelectAll={handleTopLevelSelectAll}
+                      />
+
+                      {/* 하위 폴더들 */}
+                      {folderSections.map((section) => {
+                        const sectionTestCases = getSortedTestCases(section);
+                        // 최상위 폴더 자체의 테스트케이스가 없고 depth가 0이면 헤더만 표시했으므로 스킵
+                        if (section.depth === 0 && sectionTestCases.length === 0) return null;
+                        // 하위 폴더인데 테스트케이스가 없으면 스킵
+                        if (section.depth > 0 && sectionTestCases.length === 0) return null;
+
+                        const isExpanded = expandedSections.has(section.id);
+                        // 하위 폴더 포함하여 전체 선택 여부 확인
+                        const isAllSelected = isSectionFullySelected(section.id);
+                        const sortState = sectionSortState[section.id] || { field: null, direction: 'asc' };
+
+                        return (
+                          <div key={section.id}>
+                            {/* Section Header */}
+                            <SectionHeader
+                              section={section}
+                              count={sectionTestCases.length}
+                              isExpanded={isExpanded}
+                              onToggle={() => handleToggleSection(section.id)}
+                              isAllSelected={isAllSelected}
+                              onSelectAll={() => handleSelectAllInSection(section.id)}
                             />
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                );
-              })}
+
+                            {/* Section Table */}
+                            {isExpanded && (
+                              <table className="min-w-full">
+                                <thead>
+                                  <SectionTableHeader
+                                    sectionId={section.id}
+                                    sortState={sortState}
+                                    onSort={handleSortSection}
+                                  />
+                                </thead>
+                                <tbody>
+                                  {sectionTestCases.map((tc) => (
+                                    <TestCaseRow
+                                      key={tc.id}
+                                      testCase={tc}
+                                      isSelected={selectedIds.has(tc.id)}
+                                      isDetailOpen={selectedTestCase?.id === tc.id && isDetailPanelOpen}
+                                      onToggleSelect={handleToggleSelect}
+                                      onOpenDetail={handleOpenDetail}
+                                    />
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
         </div>

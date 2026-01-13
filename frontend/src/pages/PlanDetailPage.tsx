@@ -177,8 +177,73 @@ interface FolderNode {
   name: string;
   count: number;
   parentId: string | null;
+  order?: number;
   children: FolderNode[];
 }
+
+// 폴더별로 그룹화된 아이템 구조
+interface FolderSection {
+  id: string;
+  name: string;
+  depth: number;
+  parentId: string | null;
+  items: PlanItem[];
+}
+
+// 최상위 폴더 헤더 컴포넌트 (Studio 스타일)
+interface TopLevelFolderHeaderProps {
+  name: string;
+  count: number;
+  isAllSelected: boolean;
+  onSelectAll: () => void;
+}
+
+const TopLevelFolderHeader: React.FC<TopLevelFolderHeaderProps> = ({ name, count, isAllSelected, onSelectAll }) => {
+  return (
+    <tr className="bg-slate-100 border-b border-slate-200">
+      <td colSpan={9} className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectAll();
+            }}
+            className="text-slate-500 hover:text-slate-700 focus:outline-none transition-colors"
+          >
+            {isAllSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
+          </button>
+          <FolderOpen size={16} className="text-slate-600" />
+          <span className="font-bold text-slate-800 text-sm">{name}</span>
+          <span className="text-[10px] text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded">{count}</span>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
+// 폴더 섹션 헤더 컴포넌트 (하위 폴더용)
+interface FolderSectionHeaderProps {
+  name: string;
+  depth: number;
+  count: number;
+}
+
+const FolderSectionHeader: React.FC<FolderSectionHeaderProps> = ({ name, depth, count }) => {
+  return (
+    <tr className="bg-white border-b border-slate-200 hover:bg-slate-50">
+      <td colSpan={9} className="px-2 py-2">
+        <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 20}px` }}>
+          <Square size={14} className="text-slate-300" />
+          <ChevronDown size={14} className="text-slate-400" />
+          <Folder size={14} className="text-amber-500" />
+          <span className="text-sm font-semibold text-slate-700">{name}</span>
+          <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{count}</span>
+        </div>
+      </td>
+    </tr>
+  );
+};
 
 interface FolderTreeItemProps {
   node: FolderNode;
@@ -574,6 +639,7 @@ const PlanDetailPage: React.FC = () => {
         name: string;
         count: number;
         parentId: string | null;
+        order: number;
       }
     >();
 
@@ -589,6 +655,7 @@ const PlanDetailPage: React.FC = () => {
             name: folder.name,
             count: 1,
             parentId: folder.parentId || null,
+            order: (folder as any).order ?? 0,
           });
         }
       } else {
@@ -596,7 +663,7 @@ const PlanDetailPage: React.FC = () => {
         if (folderMap.has('uncategorized')) {
           folderMap.get('uncategorized')!.count++;
         } else {
-          folderMap.set('uncategorized', { name: '미분류', count: 1, parentId: null });
+          folderMap.set('uncategorized', { name: '미분류', count: 1, parentId: null, order: 999999 });
         }
       }
     });
@@ -607,6 +674,7 @@ const PlanDetailPage: React.FC = () => {
       name: info.name,
       count: info.count,
       parentId: info.parentId,
+      order: info.order,
       children: [] as FolderNode[],
     }));
 
@@ -622,9 +690,9 @@ const PlanDetailPage: React.FC = () => {
       }
     });
 
-    // Sort children
+    // Sort children by order (same as /cases page)
     const sortFolders = (nodes: FolderNode[]) => {
-      nodes.sort((a, b) => a.name.localeCompare(b.name));
+      nodes.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
       nodes.forEach((n) => sortFolders(n.children));
     };
     sortFolders(roots);
@@ -663,6 +731,159 @@ const PlanDetailPage: React.FC = () => {
 
     return items;
   }, [plan, searchQuery, selectedFolderId]);
+
+  // 폴더별로 그룹화된 섹션 생성 (계층 구조 유지)
+  const groupedSections = useMemo(() => {
+    if (!plan || filteredItems.length === 0) return [];
+
+    // 폴더 정보를 맵으로 구성
+    const folderInfoMap = new Map<
+      string,
+      {
+        name: string;
+        parentId: string | null;
+        order: number;
+        depth: number;
+      }
+    >();
+
+    // 모든 폴더 정보 수집 (부모 폴더 포함)
+    filteredItems.forEach((item) => {
+      const folder = item.testCase.folder;
+      if (folder && !folderInfoMap.has(folder.id)) {
+        folderInfoMap.set(folder.id, {
+          name: folder.name,
+          parentId: folder.parentId || null,
+          order: (folder as any).order ?? 0,
+          depth: 0,
+        });
+      }
+    });
+
+    // 부모 폴더 체인 추가 및 depth 계산
+    const calculateDepth = (folderId: string, visited = new Set<string>()): number => {
+      if (visited.has(folderId)) return 0;
+      visited.add(folderId);
+      const info = folderInfoMap.get(folderId);
+      if (!info || !info.parentId) return 0;
+      return 1 + calculateDepth(info.parentId, visited);
+    };
+
+    folderInfoMap.forEach((info, id) => {
+      info.depth = calculateDepth(id);
+    });
+
+    // 루트 폴더 찾기 (parentId가 null이거나, parentId가 folderInfoMap에 없는 경우)
+    const getRootFolderId = (folderId: string): string => {
+      const info = folderInfoMap.get(folderId);
+      if (!info || !info.parentId || !folderInfoMap.has(info.parentId)) {
+        return folderId;
+      }
+      return getRootFolderId(info.parentId);
+    };
+
+    // 아이템을 폴더별로 그룹화
+    const itemsByFolder = new Map<string, PlanItem[]>();
+    filteredItems.forEach((item) => {
+      const folderId = item.testCase.folderId || 'uncategorized';
+      if (!itemsByFolder.has(folderId)) {
+        itemsByFolder.set(folderId, []);
+      }
+      itemsByFolder.get(folderId)!.push(item);
+    });
+
+    // 미분류 폴더 정보 추가
+    if (itemsByFolder.has('uncategorized') && !folderInfoMap.has('uncategorized')) {
+      folderInfoMap.set('uncategorized', {
+        name: '미분류',
+        parentId: null,
+        order: 999999,
+        depth: 0,
+      });
+    }
+
+    // 섹션 배열 생성 (계층 구조로 정렬)
+    const sections: FolderSection[] = [];
+
+    // 폴더를 계층 구조로 정렬하는 함수
+    const sortedFolderIds = Array.from(folderInfoMap.keys()).sort((a, b) => {
+      const infoA = folderInfoMap.get(a)!;
+      const infoB = folderInfoMap.get(b)!;
+
+      // 루트 폴더끼리 먼저 비교
+      const rootA = getRootFolderId(a);
+      const rootB = getRootFolderId(b);
+
+      if (rootA !== rootB) {
+        const rootInfoA = folderInfoMap.get(rootA);
+        const rootInfoB = folderInfoMap.get(rootB);
+        return (rootInfoA?.order ?? 0) - (rootInfoB?.order ?? 0);
+      }
+
+      // 같은 루트인 경우 depth로 정렬, 같은 depth면 order로 정렬
+      if (infoA.depth !== infoB.depth) {
+        return infoA.depth - infoB.depth;
+      }
+
+      return infoA.order - infoB.order;
+    });
+
+    // 계층 구조에 맞게 섹션 생성
+    const processedFolders = new Set<string>();
+
+    const addFolderSection = (folderId: string, depth: number) => {
+      if (processedFolders.has(folderId)) return;
+      processedFolders.add(folderId);
+
+      const info = folderInfoMap.get(folderId);
+      if (!info) return;
+
+      const items = itemsByFolder.get(folderId) || [];
+
+      sections.push({
+        id: folderId,
+        name: info.name,
+        depth: depth,
+        parentId: info.parentId,
+        items: items,
+      });
+    };
+
+    // 루트 폴더별로 그룹화하여 처리
+    const rootFolders = new Map<string, string[]>();
+    sortedFolderIds.forEach((id) => {
+      const rootId = getRootFolderId(id);
+      if (!rootFolders.has(rootId)) {
+        rootFolders.set(rootId, []);
+      }
+      rootFolders.get(rootId)!.push(id);
+    });
+
+    // 루트 폴더 순서대로 처리
+    const sortedRoots = Array.from(rootFolders.keys()).sort((a, b) => {
+      const infoA = folderInfoMap.get(a);
+      const infoB = folderInfoMap.get(b);
+      return (infoA?.order ?? 0) - (infoB?.order ?? 0);
+    });
+
+    sortedRoots.forEach((rootId) => {
+      const folderIds = rootFolders.get(rootId)!;
+      // 각 루트의 폴더들을 depth 순서로 정렬
+      folderIds.sort((a, b) => {
+        const infoA = folderInfoMap.get(a)!;
+        const infoB = folderInfoMap.get(b)!;
+        if (infoA.depth !== infoB.depth) return infoA.depth - infoB.depth;
+        return infoA.order - infoB.order;
+      });
+
+      folderIds.forEach((id) => {
+        const info = folderInfoMap.get(id)!;
+        addFolderSection(id, info.depth);
+      });
+    });
+
+    return sections;
+  }, [plan, filteredItems]);
 
   if (isLoading && !plan)
     return <div className="flex justify-center items-center h-screen text-slate-500">로딩 중...</div>;
@@ -985,113 +1206,191 @@ const PlanDetailPage: React.FC = () => {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-100">
-                {filteredItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${
-                      selectedItem?.id === item.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''
-                    } ${selectedItems.has(item.id) ? 'bg-indigo-50/30' : ''}`}
-                    onClick={() => handleRowClick(item)}
-                  >
-                    <td className="px-2 py-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.has(item.id)}
-                        onChange={() => handleToggleSelect(item.id)}
-                        className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-xs text-slate-500 font-mono align-middle truncate">
-                      {item.testCase.caseNumber
-                        ? `C${item.testCase.caseNumber}`
-                        : item.testCaseId.substring(0, 6).toUpperCase()}
-                    </td>
-                    <td className="px-2 py-2 align-middle">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium text-slate-900 flex-1 truncate">
-                          {item.testCase.title}
-                        </span>
-                        {item.comment && <MessageSquare size={12} className="text-indigo-500 flex-shrink-0" />}
-                        <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle">
-                      <div className="flex items-center justify-center">
-                        <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-                            item.testCase.priority === 'HIGH'
-                              ? 'bg-red-100 text-red-700'
-                              : item.testCase.priority === 'MEDIUM'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-blue-100 text-blue-700'
-                          }`}
-                        >
-                          {item.testCase.priority}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle">
-                      <div className="flex items-center justify-center">
-                        <span
-                          className={`text-[9px] font-medium px-2 py-0.5 rounded ${
-                            item.testCase.automationType === 'AUTOMATED'
-                              ? 'bg-violet-100 text-violet-700'
-                              : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          {item.testCase.automationType === 'AUTOMATED' ? 'Auto' : 'Manual'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle">
-                      <div className="flex items-center justify-center">
-                        {item.testCase.category ? (
-                          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 truncate max-w-full">
-                            {item.testCase.category}
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-slate-400">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                      <TableSelect
-                        value={item.assignee || ''}
-                        onChange={(val) => handleAssigneeChange(item.id, val)}
-                        placeholder="-"
-                        options={[
-                          { value: '', label: '-' },
-                          ...users.map((user) => ({ value: user.name, label: user.name })),
-                        ]}
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle" onClick={(e) => e.stopPropagation()}>
-                      <TableSelect
-                        value={item.result}
-                        onChange={(val) => handleResultChange(item.id, val as TestResult)}
-                        variant="status"
-                        statusColors={{
-                          NOT_RUN: 'bg-slate-300 text-slate-700',
-                          IN_PROGRESS: 'bg-amber-500 text-white',
-                          PASS: 'bg-emerald-500 text-white',
-                          FAIL: 'bg-red-500 text-white',
-                          BLOCK: 'bg-slate-600 text-white',
-                        }}
-                        options={[
-                          { value: 'NOT_RUN', label: 'NOT RUN' },
-                          { value: 'IN_PROGRESS', label: 'PROGRESS' },
-                          { value: 'PASS', label: 'PASS' },
-                          { value: 'FAIL', label: 'FAIL' },
-                          { value: 'BLOCK', label: 'BLOCK' },
-                        ]}
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center align-middle">
-                      <DefectsCell defects={item.defects} />
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="bg-white">
+                {(() => {
+                  // 최상위 폴더별로 그룹화
+                  const topLevelFolders = new Map<string, FolderSection[]>();
+                  let currentTopLevelId: string | null = null;
+
+                  groupedSections.forEach((section) => {
+                    if (section.depth === 0) {
+                      currentTopLevelId = section.id;
+                      topLevelFolders.set(section.id, [section]);
+                    } else if (currentTopLevelId) {
+                      topLevelFolders.get(currentTopLevelId)?.push(section);
+                    }
+                  });
+
+                  return Array.from(topLevelFolders.entries()).map(([topLevelId, folderSections]) => {
+                    const topLevelSection = folderSections[0];
+                    // 최상위 폴더와 모든 하위 폴더의 아이템 ID 수집
+                    const allItemIdsInTopLevel = folderSections.flatMap((section) => section.items.map((item) => item.id));
+                    const isTopLevelAllSelected =
+                      allItemIdsInTopLevel.length > 0 && allItemIdsInTopLevel.every((id) => selectedItems.has(id));
+
+                    // 최상위 폴더 전체 선택/해제 핸들러
+                    const handleTopLevelSelectAll = () => {
+                      const newSelected = new Set(selectedItems);
+                      if (isTopLevelAllSelected) {
+                        allItemIdsInTopLevel.forEach((id) => newSelected.delete(id));
+                      } else {
+                        allItemIdsInTopLevel.forEach((id) => newSelected.add(id));
+                      }
+                      setSelectedItems(newSelected);
+                    };
+
+                    return (
+                      <React.Fragment key={topLevelId}>
+                        {/* Top Level Folder Header (Studio 스타일) */}
+                        <TopLevelFolderHeader
+                          name={topLevelSection.name}
+                          count={allItemIdsInTopLevel.length}
+                          isAllSelected={isTopLevelAllSelected}
+                          onSelectAll={handleTopLevelSelectAll}
+                        />
+
+                        {/* 하위 폴더들 */}
+                        {folderSections.map((section) => {
+                          // 최상위 폴더 자체의 아이템이 없고 depth가 0이면 헤더만 표시했으므로 스킵
+                          if (section.depth === 0 && section.items.length === 0) return null;
+                          // 하위 폴더인데 아이템이 없으면 스킵
+                          if (section.depth > 0 && section.items.length === 0) return null;
+
+                          const displayDepth = section.depth === 0 ? 1 : section.depth;
+
+                          return (
+                            <React.Fragment key={section.id}>
+                              {/* Sub Folder Header */}
+                              <FolderSectionHeader
+                                name={section.depth === 0 ? section.name : section.name}
+                                depth={displayDepth}
+                                count={section.items.length}
+                              />
+                              {/* Folder Items */}
+                              {section.items.map((item) => (
+                                <tr
+                                  key={item.id}
+                                  className={`hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 ${
+                                    selectedItem?.id === item.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''
+                                  } ${selectedItems.has(item.id) ? 'bg-indigo-50/30' : ''}`}
+                                  onClick={() => handleRowClick(item)}
+                                >
+                                  <td
+                                    className="px-2 py-2 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedItems.has(item.id)}
+                                      onChange={() => handleToggleSelect(item.id)}
+                                      className="h-3.5 w-3.5 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded cursor-pointer"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2 text-xs text-slate-500 font-mono align-middle truncate">
+                                    {item.testCase.caseNumber
+                                      ? `C${item.testCase.caseNumber}`
+                                      : item.testCaseId.substring(0, 6).toUpperCase()}
+                                  </td>
+                                  <td className="px-2 py-2 align-middle">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs font-medium text-slate-900 flex-1 truncate">
+                                        {item.testCase.title}
+                                      </span>
+                                      {item.comment && (
+                                        <MessageSquare size={12} className="text-indigo-500 flex-shrink-0" />
+                                      )}
+                                      <ChevronRight size={14} className="text-slate-400 flex-shrink-0" />
+                                    </div>
+                                  </td>
+                                  <td className="px-2 py-2 text-center align-middle">
+                                    <div className="flex items-center justify-center">
+                                      <span
+                                        className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                                          item.testCase.priority === 'HIGH'
+                                            ? 'bg-red-100 text-red-700'
+                                            : item.testCase.priority === 'MEDIUM'
+                                              ? 'bg-amber-100 text-amber-700'
+                                              : 'bg-blue-100 text-blue-700'
+                                        }`}
+                                      >
+                                        {item.testCase.priority}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-2 py-2 text-center align-middle">
+                                    <div className="flex items-center justify-center">
+                                      <span
+                                        className={`text-[9px] font-medium px-2 py-0.5 rounded ${
+                                          item.testCase.automationType === 'AUTOMATED'
+                                            ? 'bg-violet-100 text-violet-700'
+                                            : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {item.testCase.automationType === 'AUTOMATED' ? 'Auto' : 'Manual'}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="px-2 py-2 text-center align-middle">
+                                    <div className="flex items-center justify-center">
+                                      {item.testCase.category ? (
+                                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 truncate max-w-full">
+                                          {item.testCase.category}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] text-slate-400">—</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td
+                                    className="px-2 py-2 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <TableSelect
+                                      value={item.assignee || ''}
+                                      onChange={(val) => handleAssigneeChange(item.id, val)}
+                                      placeholder="-"
+                                      options={[
+                                        { value: '', label: '-' },
+                                        ...users.map((user) => ({ value: user.name, label: user.name })),
+                                      ]}
+                                    />
+                                  </td>
+                                  <td
+                                    className="px-2 py-2 text-center align-middle"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <TableSelect
+                                      value={item.result}
+                                      onChange={(val) => handleResultChange(item.id, val as TestResult)}
+                                      variant="status"
+                                      statusColors={{
+                                        NOT_RUN: 'bg-slate-300 text-slate-700',
+                                        IN_PROGRESS: 'bg-amber-500 text-white',
+                                        PASS: 'bg-emerald-500 text-white',
+                                        FAIL: 'bg-red-500 text-white',
+                                        BLOCK: 'bg-slate-600 text-white',
+                                      }}
+                                      options={[
+                                        { value: 'NOT_RUN', label: 'NOT RUN' },
+                                        { value: 'IN_PROGRESS', label: 'PROGRESS' },
+                                        { value: 'PASS', label: 'PASS' },
+                                        { value: 'FAIL', label: 'FAIL' },
+                                        { value: 'BLOCK', label: 'BLOCK' },
+                                      ]}
+                                    />
+                                  </td>
+                                  <td className="px-2 py-2 text-center align-middle">
+                                    <DefectsCell defects={item.defects} />
+                                  </td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
 

@@ -296,9 +296,11 @@ export const TestCaseDetailColumn: React.FC<TestCaseDetailColumnProps> = ({
               <CheckCircle2 size={13} className="inline mr-1" />
               Precondition
             </label>
-            <div 
-              className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 border border-slate-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(planItem.testCase.precondition, { ADD_ATTR: ['target', 'rel'] }) }}
+            <div
+              className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 border border-slate-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(planItem.testCase.precondition, { ADD_ATTR: ['target', 'rel'] }),
+              }}
             />
           </div>
         )}
@@ -310,9 +312,11 @@ export const TestCaseDetailColumn: React.FC<TestCaseDetailColumnProps> = ({
               <ListChecks size={13} className="inline mr-1" />
               Steps
             </label>
-            <div 
-              className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 border border-slate-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(planItem.testCase.steps, { ADD_ATTR: ['target', 'rel'] }) }}
+            <div
+              className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 border border-slate-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(planItem.testCase.steps, { ADD_ATTR: ['target', 'rel'] }),
+              }}
             />
           </div>
         )}
@@ -323,9 +327,11 @@ export const TestCaseDetailColumn: React.FC<TestCaseDetailColumnProps> = ({
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
               Expected Result
             </label>
-            <div 
-              className="bg-emerald-50 rounded-lg p-3 text-sm text-emerald-900 border border-emerald-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-headings:text-emerald-900 prose-a:text-emerald-700 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4"
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(planItem.testCase.expectedResult, { ADD_ATTR: ['target', 'rel'] }) }}
+            <div
+              className="bg-emerald-50 rounded-lg p-3 text-sm text-emerald-900 border border-emerald-200 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-headings:text-emerald-900 prose-a:text-emerald-700 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-4 prose-ol:pl-4 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(planItem.testCase.expectedResult, { ADD_ATTR: ['target', 'rel'] }),
+              }}
             />
           </div>
         )}
